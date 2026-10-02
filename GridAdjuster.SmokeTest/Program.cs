@@ -224,6 +224,9 @@ internal static class Program
             int dg = -lo, hidden = 0;
             for (int w = 0; w < vis.W; w++) for (int h = 0; h < vis.H; h++) if (vis.B(dg, w, h) == 0) hidden++;
             Console.WriteLine($"ground tile visibility: {vis.W}x{vis.H}, {hidden} ground tiles hidden");
+            if (levelArg != null)
+                for (int w = 0; w < vis.W; w++)
+                    Console.WriteLine($"  {w,3}: " + string.Concat(Enumerable.Range(0, vis.H).Select(h => vis.B(dg, w, h) == 0 ? " ." : " #")));
         }
         var water = Ary.Read(pkg, ARY2, 0x3B76);
         if (water != null)
