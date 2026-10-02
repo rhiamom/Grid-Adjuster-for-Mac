@@ -24,7 +24,7 @@
        converts them to UTF-8 under obj/ and compiles those copies. The files
        in the repo stay byte-for-byte as she wrote them. -->
   <ItemGroup>
-    <Cp1252Source Include="PrimaryForm.cs;R_WGRA.cs;R_3ARY.cs;R_3ARY_01.cs;R_2ARY_3B76.cs" />
+    <Cp1252Source Include="PrimaryForm.cs;R_WGRA.cs;R_3ARY.cs;R_3ARY_01.cs;R_2ARY_3B76.cs;R_OBJT.cs" />
   </ItemGroup>
 
   <UsingTask TaskName="ConvertCp1252ToUtf8" TaskFactory="RoslynCodeTaskFactory"

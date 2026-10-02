@@ -22,6 +22,12 @@
 //          [--remove] [--advanced --ground N --water N --no-ground --no-water --all-vertices]
 //                                         her Specification screen + Finish;
 //                                         values in clicks, as her form shows them
+//   lower  <HOOD> <lot#> --walls J0:J1,K0:K1[;J0:J1,K0:K1...] [--by -3.0]
+//                                         NOT in her tool: move the house's objects
+//                                         down with its floors after a Basement
+//                                         conversion (her own R_OBJT.AddElevation).
+//                                         --walls = the foundation walls in lot-file
+//                                         coordinates (as `grid` prints them).
 //
 // <HOOD> is a hood code (N001) for its main package, or CODE/<package file>
 // for a subhood. Options: --out DIR (work folder), --in-place (edit the real
@@ -73,7 +79,7 @@ internal static class Program
         string hoodDir = Path.Combine(nbRoot, code);
         if (!Directory.Exists(hoodDir)) { Console.Error.WriteLine($"No hood folder {hoodDir}"); return 1; }
 
-        if (mode == "adjust" && !inPlace)
+        if ((mode == "adjust" || mode == "lower") && !inPlace)
         {
             outDir ??= Path.Combine(Path.GetTempPath(), "gridadjuster-smoke", $"{code}-{DateTime.Now:yyyyMMdd-HHmmss}");
             string copy = Path.Combine(outDir, code);
@@ -91,6 +97,7 @@ internal static class Program
             "list" => List(package),
             "grid" => Grid(package, LotArg(args), Opt(args, "--level")),
             "adjust" => Adjust(package, LotArg(args), args),
+            "lower" => Lower(package, LotArg(args), args),
             _ => 2,
         };
     }
@@ -340,5 +347,75 @@ internal static class Program
                           $" same resource list: {(sameSet ? "yes" : "NO")}, only grid arrays: {(onlyGrid ? "yes" : "NO")}, backup: {(bkp ? "yes" : "NO")}");
         Grid(package, lot, null);
         return sameSet && onlyGrid && bkp ? 0 : 1;
+    }
+
+    // After a Basement conversion every floor in the house sits 16 clicks
+    // (3.0) lower, but her tool leaves objects where they were. Lower them by
+    // the same amount, keeping each on its own storey:
+    //  - an object standing inside the walls, if it is above the ground;
+    //  - an object on the one-tile rim outside the walls (doors and windows
+    //    sit there), only if it is at main-floor height or higher, so things
+    //    on the porch at foundation height stay put.
+    // The change itself is Mootilda's R_OBJT.AddElevation (unused in her tools).
+    private static int Lower(string package, uint lot, string[] args)
+    {
+        string lotPath = LotPackagePath(package, lot);
+        float by = Opt(args, "--by") is string b ? float.Parse(b, CultureInfo.InvariantCulture) : -3.0F;
+        var walls = (Opt(args, "--walls") ?? throw new ArgumentException("needs --walls J0:J1,K0:K1"))
+            .Split(';').Select(r => r.Split(',').Select(a => a.Split(':').Select(int.Parse).ToArray()).ToArray()).ToList();
+        bool Inside(float x, float y, int grow) => walls.Any(w =>
+            x > w[0][0] - grow && x < w[0][1] + grow && y > w[1][0] - grow && y < w[1][1] + grow);
+
+        var pkg = SimPe.Packages.File.LoadFromFile(lotPath);
+        int lowered = 0;
+        foreach (var pfd in pkg.FindFiles(0xFA1C39F7))
+        {
+            byte[] d = pkg.Read(pfd).UncompressedData;
+            var main = MainPosition(d);
+            if (main == null) continue;
+            var (x, y, z) = main.Value;
+            float min;
+            if (Inside(x, y, 0)) min = 0.5F;            // above the ground
+            else if (Inside(x, y, 1)) min = 3.0F - 0.01F; // main floor or higher
+            else continue;
+            if (z < min) continue;
+            new R_OBJT(pkg, pfd).AddElevation(by, min);
+            lowered++;
+            Console.WriteLine($"  lowered {pfd.Instance:X4} ({x},{y},{z}) -> {z + by}  {ObjectName(d)}");
+        }
+        Console.WriteLine($"  {lowered} objects lowered by {by}");
+        // Save the way her PackageSave does: .bkp, then rebuild.
+        System.IO.File.Copy(lotPath, Path.ChangeExtension(lotPath, ".bkp"), true);
+        var ms = pkg.Build();
+        pkg.Close();
+        System.IO.File.WriteAllBytes(lotPath, ms.ToArray());
+        return 0;
+    }
+
+    // The object's own position: the first (x, y, z) in the record that looks
+    // like a lot position (x and y on the half tile, z on a quarter metre).
+    private static (float, float, float)? MainPosition(byte[] d)
+    {
+        for (int o = 64; o + 12 <= d.Length; o++)
+        {
+            float x = BitConverter.ToSingle(d, o), y = BitConverter.ToSingle(d, o + 4), z = BitConverter.ToSingle(d, o + 8);
+            if (x >= 0.5F && x < 129 && y >= 0.5F && y < 129 && z > -60 && z < 60 && z != 0F
+                && Math.Abs(x * 2 - Math.Round(x * 2)) < 1e-4 && Math.Abs(y * 2 - Math.Round(y * 2)) < 1e-4
+                && Math.Abs(z * 4 - Math.Round(z * 4)) < 1e-4)
+                return (x, y, z);
+        }
+        return null;
+    }
+
+    private static string ObjectName(byte[] d)
+    {
+        var best = ""; var sb = new System.Text.StringBuilder();
+        for (int i = 64; i < Math.Min(d.Length, 400); i++)
+        {
+            char c = (char)d[i];
+            if (c >= 32 && c < 127) sb.Append(c);
+            else { string t = sb.ToString(); if (t.Length > best.Length && t != "cObject" && t != "cAnimatable") best = t; sb.Clear(); }
+        }
+        return best;
     }
 }
