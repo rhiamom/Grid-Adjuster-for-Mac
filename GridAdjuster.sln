@@ -9,6 +9,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GridAdjuster.Engine", "Grid
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GridAdjuster.SmokeTest", "GridAdjuster.SmokeTest\GridAdjuster.SmokeTest.csproj", "{08B1E326-F7A6-4388-A540-C5D9FCF7B0DA}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GridAdjuster.App", "GridAdjuster.App\GridAdjuster.App.csproj", "{D5366FB0-0B43-4E54-8EA5-1BFD75A7A035}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -30,5 +32,9 @@ Global
 		{08B1E326-F7A6-4388-A540-C5D9FCF7B0DA}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{08B1E326-F7A6-4388-A540-C5D9FCF7B0DA}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{08B1E326-F7A6-4388-A540-C5D9FCF7B0DA}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D5366FB0-0B43-4E54-8EA5-1BFD75A7A035}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D5366FB0-0B43-4E54-8EA5-1BFD75A7A035}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D5366FB0-0B43-4E54-8EA5-1BFD75A7A035}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D5366FB0-0B43-4E54-8EA5-1BFD75A7A035}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal
