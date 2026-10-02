@@ -74,6 +74,7 @@ public sealed class MainWindow : Window
             HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Top,
         };
         BuildChildren(_form, _root, "Microsoft Sans Serif, 8.25pt");
+        AddFinishBasementButton();
         Content = _root;
         Width = _form.Size.Width;
         Height = _form.Size.Height;
@@ -92,6 +93,78 @@ public sealed class MainWindow : Window
     {
         if (!_form.IsClosed) _form.Close();
     }
+
+    #region Finish basement (Mac extra, not in her form)
+
+    // Shown on her final screen after a successful Basement Finish. Runs
+    // BasementExtras (engine): the rim on the storeys above, and the objects
+    // lowered with the floors. Idempotent, so it may be clicked after each
+    // pass of an L-shaped house.
+    private void AddFinishBasementButton()
+    {
+        var ui = new Avalonia.Controls.Button
+        {
+            Content = "Finish basement…", Width = 150, Height = 23, MinHeight = 0, Padding = new Thickness(2, 0),
+            FontSize = 8.25 * 96.0 / 72.0, FontWeight = FontWeight.Bold,
+            HorizontalContentAlignment = HorizontalAlignment.Center, VerticalContentAlignment = VerticalAlignment.Center,
+            ZIndex = 1000,
+        };
+        ToolTip.SetTip(ui, "Mac extra: fix the doors' outside strip and lower doors, windows and furniture with the floors.");
+        Canvas.SetLeft(ui, 95);
+        Canvas.SetTop(ui, 421);
+        _root.Children.Add(ui);
+        _refreshers.Add(() => ui.IsVisible =
+            _form.CurrentScreen == WF.PrimaryForm.ScreenFinal
+            && _form.PatternBasement.Checked && !_form.RemoveBasement.Checked
+            && _form.Title.ForeColor != System.Drawing.Color.Red
+            && !string.IsNullOrEmpty(_form.LotPackageName));
+        ui.Click += async (_, _) =>
+        {
+            if (_busy) return;
+            var ok = await Dialogs.Ask(this, new WF.MessageRequest
+            {
+                Caption = "Finish basement",
+                Text = "This is a Mac extra, not part of Mootilda's Grid Adjuster.\n\n" +
+                       "Her Basement pattern lowers the floors, but leaves:\n" +
+                       "  •  the strip just outside the walls a storey too high on the main floor, so the front door will not snap;\n" +
+                       "  •  doors, windows and furniture floating a storey up.\n\n" +
+                       "This fixes both for the whole basement on this lot. It is safe to use after each Basement pass " +
+                       "(for an L-shaped house): anything already fixed is left alone.\n\n" +
+                       "A backup of the lot is saved first, ending in _extras.bkp.",
+                Buttons = WF.MessageBoxButtons.OKCancel, Icon = WF.MessageBoxIcon.Information,
+            });
+            if (ok != WF.DialogResult.OK) return;
+
+            string lot = _form.LotPackageName;
+            int ground = 0 - _form.LotMinimumLevel;
+            _busy = true;
+            _root.IsHitTestVisible = false;
+            Cursor = new Avalonia.Input.Cursor(StandardCursorType.Wait);
+            try
+            {
+                var r = await Task.Run(() => WF.BasementExtras.Run(lot, ground));
+                string text = r.Message;
+                if (r.RimValuesChanged > 0 || r.ObjectsLowered > 0)
+                    text += "\n\nLoad the lot in the game and check the doors, windows and furniture. " +
+                            "Windows and doors can be picked up and put back if one looks wrong.";
+                await Dialogs.Ask(this, new WF.MessageRequest
+                {
+                    Caption = "Finish basement", Text = text, Buttons = WF.MessageBoxButtons.OK,
+                    Icon = r.BasementVertices == 0 ? WF.MessageBoxIcon.Warning : WF.MessageBoxIcon.Information,
+                });
+            }
+            catch (Exception ex) { await ShowError(ex); }
+            finally
+            {
+                _busy = false;
+                _root.IsHitTestVisible = true;
+                Cursor = Avalonia.Input.Cursor.Default;
+                Refresh();
+            }
+        };
+    }
+
+    #endregion
 
     #region Building the controls
 
